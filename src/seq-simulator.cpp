@@ -28,17 +28,10 @@ public:
         }
         // if vector size is less than or = to quadtreeleafsize, return a leaf node that holds all the particle in the bmin bmax
         else if (particles.size()<=QuadTreeLeafSize){//this is a leaf node
-            auto leaf = std::make_shared<QuadTreeNode>();//leaf is of type shared_ptr<QuadTreeNode>
+            std::shared_ptr<QuadTreeNode> leaf = std::make_shared<QuadTreeNode>();//leaf is of type shared_ptr<QuadTreeNode>
             leaf->isLeaf=true;//set leaf to true
             leaf->particles= particles;//copy particles
-            //(std::static_pointer_cast<QuadTreeNode>(leaf))->isLeaf=true;//set leaf to true
-            //(std::static_pointer_cast<QuadTreeNode>(leaf))->particles= particles;//copy particles
             return leaf;
-            /*QuadTreeNode leaf;
-            leaf.isLeaf = 1;
-            leaf.particles = *particles;
-            return 
-            */
         }
 
         //RECURSIVE STEP
@@ -85,7 +78,8 @@ public:
             }
 
             //For each Quadrant if particles are greater than 0, create child nodes and add them to the parent node
-            auto parent = std::make_shared<QuadTreeNode>();
+            //auto parent = std::make_shared<QuadTreeNode>();
+            std::shared_ptr<QuadTreeNode> parent = std::make_shared<QuadTreeNode>();
 
             //QUAD 0
             if(partQuad0.size()>0){//child must be created in quad 0
@@ -99,7 +93,7 @@ public:
                 child_bmax.y = bmax.y;
 
                 //create child recursively 
-                auto child = buildQuadTree(partQuad0,child_bmin,child_bmax);
+                std::shared_ptr<QuadTreeNode> child = buildQuadTree(partQuad0,child_bmin,child_bmax);
 
                 //add child to parent
                 parent->children[0] = child;
@@ -117,7 +111,7 @@ public:
                 child_bmax.y = bmax.y;
 
                 //create child recursively 
-                auto child = buildQuadTree(partQuad1,child_bmin,child_bmax);
+                std::shared_ptr<QuadTreeNode> child = buildQuadTree(partQuad1,child_bmin,child_bmax);
 
                 //add child to parent
                 parent->children[1] = child;
@@ -135,7 +129,7 @@ public:
                 child_bmax.y = center.y;
 
                 //create child recursively 
-                auto child = buildQuadTree(partQuad2,child_bmin,child_bmax);
+                std::shared_ptr<QuadTreeNode> child = buildQuadTree(partQuad2,child_bmin,child_bmax);
 
                 //add child to parent
                 parent->children[2] = child;
@@ -154,7 +148,7 @@ public:
 
                 
                 //create child recursively 
-                auto child = buildQuadTree(partQuad3,child_bmin,child_bmax);
+                std::shared_ptr<QuadTreeNode> child = buildQuadTree(partQuad3,child_bmin,child_bmax);
 
                 //add child to parent
                 
