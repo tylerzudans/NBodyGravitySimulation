@@ -17,14 +17,6 @@ class SequentialNBodySimulator : public INBodySimulator
 public:
     std::shared_ptr<QuadTreeNode> buildQuadTree(std::vector<Particle> & particles, Vec2 bmin, Vec2 bmax)
     {
-        /*
-        //DEBUG 
-        std::cout<<"Quad with particle vector of size "<<particles.size()<<" -> ("<<bmin.x<<','<<bmin.y<<") - ("<<bmax.x<<','<<bmax.y<<")"<<std::endl; 
-        for(Particle p : particles){
-            std::cout<<p.id<<" -> "<<p.position.x<<','<<p.position.y<<std::endl;
-        }
-        std::cout<<std::endl;
-        */
 
         //BASE CASE
         // if vector size is 0 throw exception
@@ -34,12 +26,14 @@ public:
         }
         // if vector size is less than or = to quadtreeleafsize, return a leaf node that holds all the particle in the bmin bmax
         else if (particles.size()<=QuadTreeLeafSize){//this is a leaf node
+            /*
             //DEBUG 
             std::cout<<"Quad with particle vector of size "<<particles.size()<<" -> ("<<bmin.x<<','<<bmin.y<<") - ("<<bmax.x<<','<<bmax.y<<")"<<std::endl; 
             for(Particle p : particles){
                 std::cout<<p.id<<" -> "<<p.position.x<<','<<p.position.y<<std::endl;
             }
             std::cout<<std::endl;
+            */
 
             std::shared_ptr<QuadTreeNode> leaf = std::make_shared<QuadTreeNode>();//leaf is of type shared_ptr<QuadTreeNode>
             leaf->isLeaf=true;//set leaf to true
@@ -231,19 +225,29 @@ public:
         //In this case, instead of looking for each particle in a radius, we look for each NODE in a radius
         //We can ignore nodes for which the the closest boundary corner is outside the radius
         //we go through each particle in that nodes and calculate from there
+        
        
        #pragma omp parallel for
         for (int i = 0; i < (int)particles.size(); i++)
         {
             auto pi = particles[i];
             Vec2 force = Vec2(0.0f, 0.0f);
+
+
             // accumulate attractive forces to apply to particle i
+            /*
             for (size_t j = 0; j < particles.size(); j++)//TODO Replace loop with QuadTree.GetParticles() //acceleration structure has method getparticles, quadtree is child of accel struct
             {
                 if (j == i) continue;
                 if ((pi.position - particles[j].position).length() < params.cullRadius)
                     force += computeForce(pi, particles[j], params.cullRadius);
             }
+            */
+            std::vector<Particle> particlesInRange;
+            accel->getParticles(particlesInRange,pi.position,params.cullRadius);//get proximal oarticles
+            for(Particle pr : particlesInRange) force += computeForce(pi,pr,params.cullRadius);//add force to particle
+
+
             // update particle state using the computed force
             newParticles[i] = updateParticle(pi, force, params.deltaTime);
         }
