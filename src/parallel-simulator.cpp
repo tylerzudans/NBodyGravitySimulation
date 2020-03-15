@@ -18,7 +18,7 @@ public:
     // TODO: implement a function that builds and returns a quadtree containing particles.
     // You do not have to preserve this function type.
     std::shared_ptr<QuadTreeNode> buildQuadTree(std::vector<Particle> & particles, Vec2 bmin, Vec2 bmax){
-        return buildQuadTreeParallelBasic(particles,bmin,bmax);
+        return buildQuadTreeParallelIntermediate(particles,bmin,bmax);
     }
     std::shared_ptr<QuadTreeNode> buildQuadTreeParallelBasic(std::vector<Particle> & particles, Vec2 bmin, Vec2 bmax){
         //ORCHESTRATION - BUILD TOP OF THE TREE MANUALLY, AND HAVE A SET OF SUBPROBLEMS TO BE DIVIDED AMONGST NODES
@@ -46,33 +46,68 @@ public:
             //std::cout<<thread_num<<'\n';
         }
         return root;
-
-
-        /*
-        //Level 2
-        std::cout << "Dividing into subproblems on level 2 . . ." << "\n";
-        subproblems.clear();
-        for(auto node: root->children){
-            std::vector<std::tuple<std::vector<Particle>, Vec2, Vec2>> subsubproblems = divideIntoFour(particles,bmin,bmax);
+    }
+    std::shared_ptr<QuadTreeNode> buildQuadTreeParallelIntermediate(std::vector<Particle> & particles, Vec2 bmin, Vec2 bmax){
+        //ORCHESTRATION - BUILD TOP OF THE TREE MANUALLY, AND HAVE A SET OF SUBPROBLEMS TO BE DIVIDED AMONGST NODES
+        
+        //ROOT
+        std::shared_ptr<QuadTreeNode> root = std::make_shared<QuadTreeNode>();
+        if(particles.size()<=QuadTreeLeafSize) return buildQuadTreeSequential(particles,bmin,bmax);//if tree is small use sequential
+        
+        //Level 1
+        //std::cout << "Dividing into subproblems on level 1 . . ." << "\n";
+        std::vector<std::tuple<std::vector<Particle>, Vec2, Vec2>> subproblems = divideIntoFour(particles,bmin,bmax);
+        for(int i = 0; i<subproblems.size(); i++){
+            std::shared_ptr<QuadTreeNode> child = buildNode(subproblems[i]);
+            if(child->isLeaf) return buildQuadTreeSequential(particles,bmin,bmax);//if tree is small use sequential
+            root->children[i]=child;
         }
-        */
-
-
-        /*
-        while(subproblems.size()<STARTER_NODES){ //build up the subproblems
-            std::cout << subproblems.size();
-            std::vector<std::tuple<std::vector<Particle>, Vec2, Vec2>> old_subproblems(subproblems);//make a copy of the old problems
-            subproblems.clear();
-            for(auto problem: subproblems){//take qeued problems
-                for(auto subproblem: divideIntoFour(problem)){//divide each in 4
-                    subproblems.push_back(subproblem);//add 4 to queue
-                }
-                
+        //std::cout << "Level 1 children built" << "\n";
+        
+        //level2
+        std::vector<std::tuple<std::vector<Particle>, Vec2, Vec2>> subproblems_2 = std::vector<std::tuple<std::vector<Particle>, Vec2, Vec2>>();
+        //for(auto child: root->children){
+        for(int i = 0; i<subproblems.size();i++){
+            auto child = root->children[i];
+            if(child->isLeaf) return buildQuadTreeSequential(particles,bmin,bmax);//if tree is small use sequential
+            auto child_problems = divideIntoFour(child->particles,std::get<1>(subproblems[i]),std::get<2>(subproblems[i]));
+            //for(auto problem: child_problems){
+            for(int j = 0; j<4;j++){
+                subproblems_2.push_back(child_problems[j]);
+                root->children[i]->children[j] = buildNode(child_problems[j]);
             }
+
+        }
+
+        /*
+        //example sequential
+        for(int i = 0;i<4;i++) for(int j = 0; j<4 ; j++){
+            root->children[i]->children[j] = buildQuadTreeSequential(subproblems_2[i*4+j]);
         }
         */
-        std::cout << "Subproblems: " << subproblems.size() << "\n";
-        return buildQuadTreeSequential(particles,bmin,bmax);
+        
+        //Work
+        int PLANNED_THREADS = 12;
+        int N = subproblems_2.size();
+        #pragma omp parallel num_threads(PLANNED_THREADS) //Build 4 threads and have each take over a child
+        {
+            int Pr= omp_get_num_threads();//sometimes less than P threads spawn 
+            unsigned long a = omp_get_thread_num()*N/Pr; 
+            unsigned long b = (omp_get_thread_num()+1)*N/Pr;
+
+            for(int i = a;i<b;i++){
+                root->children[i/4]->children[i%4] = buildQuadTreeSequential(subproblems_2[i]);
+            }
+            
+            /*
+            auto root_child = root->children[thread_num];
+            auto built_child = buildQuadTreeSequential(root_child->particles,std::get<1>(subproblems[thread_num]),std::get<2>(subproblems[thread_num]));
+            root->children[omp_get_thread_num()] = built_child;
+            //std::cout<<thread_num<<'\n';
+            */
+        }
+        
+        return root;
     }
     std::vector<std::tuple<std::vector<Particle>, Vec2, Vec2>> divideIntoFour(std::tuple<std::vector<Particle>, Vec2, Vec2> problem_tuple){
         return divideIntoFour(std::get<0>(problem_tuple),std::get<1>(problem_tuple),std::get<2>(problem_tuple));
@@ -204,6 +239,10 @@ public:
             node->particles= particles;//copy particles
             return node;
         }
+    }
+    std::shared_ptr<QuadTreeNode> buildQuadTreeSequential(std::tuple<std::vector<Particle>, Vec2, Vec2> problem_tuple)
+    {
+        return buildQuadTreeSequential(std::get<0>(problem_tuple),std::get<1>(problem_tuple),std::get<2>(problem_tuple));
     }
     std::shared_ptr<QuadTreeNode> buildQuadTreeSequential(std::vector<Particle> & particles, Vec2 bmin, Vec2 bmax)
     {
