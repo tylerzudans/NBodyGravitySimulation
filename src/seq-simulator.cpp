@@ -218,31 +218,11 @@ public:
     }
     virtual void simulateStep(AccelerationStructure * accel, std::vector<Particle> & particles, std::vector<Particle> & newParticles, StepParameters params) override
     {
-        // TODO: implement sequential version of quad-tree accelerated n-body simulation here,
-        // using quadTree as acceleration structure
-
-        //THE PLAN
-        //In this case, instead of looking for each particle in a radius, we look for each NODE in a radius
-        //We can ignore nodes for which the the closest boundary corner is outside the radius
-        //we go through each particle in that nodes and calculate from there
-        
-       
-       #pragma omp parallel for
+       //#pragma omp parallel for
         for (int i = 0; i < (int)particles.size(); i++)
         {
             auto pi = particles[i];
             Vec2 force = Vec2(0.0f, 0.0f);
-
-
-            // accumulate attractive forces to apply to particle i
-            /*
-            for (size_t j = 0; j < particles.size(); j++)//TODO Replace loop with QuadTree.GetParticles() //acceleration structure has method getparticles, quadtree is child of accel struct
-            {
-                if (j == i) continue;
-                if ((pi.position - particles[j].position).length() < params.cullRadius)
-                    force += computeForce(pi, particles[j], params.cullRadius);
-            }
-            */
             std::vector<Particle> particlesInRange;
             accel->getParticles(particlesInRange,pi.position,params.cullRadius);//get proximal oarticles
             for(Particle pr : particlesInRange) force += computeForce(pi,pr,params.cullRadius);//add force to particle
